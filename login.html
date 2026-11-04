@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartLex | Acceso al Sistema</title>
+    <!-- Tailwind CSS & FontAwesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- SDK de Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            800: '#0f172a',
+                            900: '#0a0f1d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .toast-enter { transform: translateY(-100%); opacity: 0; }
+        .toast-show { transform: translateY(0); opacity: 1; transition: all 0.35s ease-out; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-800 antialiased min-h-screen flex items-center justify-center p-4">
+
+    <!-- Notificación Toast Dinámica -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- TARJETA DE LOGIN / REGISTRO -->
+    <main class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 space-y-6 border border-slate-100/10 relative overflow-hidden">
+        
+        <!-- Header Branding -->
+        <div class="text-center space-y-2">
+            <div class="inline-flex bg-amber-500 p-3.5 rounded-2xl text-slate-950 font-black shadow-lg shadow-amber-500/20 mb-1">
+                <i class="fa-solid fa-scale-balanced text-3xl"></i>
+            </div>
+            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Smart<span class="text-amber-500 font-normal">Lex</span></h1>
+            <p id="form-subtitle" class="text-xs text-slate-500 font-medium">Ingresa tus credenciales para acceder a tus expedientes</p>
+        </div>
+
+        <!-- Formulario -->
+        <form onsubmit="procesarAutenticacion(event)" class="space-y-4 pt-2">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Correo Electrónico</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400"><i class="fa-solid fa-envelope"></i></span>
+                    <input type="email" id="auth-email" required placeholder="abogado@estudio.com" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Contraseña</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400"><i class="fa-solid fa-lock"></i></span>
+                    <input type="password" id="auth-password" required placeholder="••••••••" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                </div>
+            </div>
+
+            <!-- Botón de Envío Principal -->
+            <button type="submit" id="btn-submit" class="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-sm transition shadow-lg cursor-pointer flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-right-to-bracket text-amber-400"></i>
+                <span id="btn-text">Iniciar Sesión</span>
+            </button>
+        </form>
+
+        <!-- Conmutador de Modo (Login vs Registro) -->
+        <div class="pt-4 border-t border-slate-100 text-center text-xs text-slate-500">
+            <span id="toggle-prompt">¿No tienes una cuenta aún?</span>
+            <button type="button" onclick="alternarModo()" id="toggle-btn" class="text-amber-600 hover:text-amber-700 font-bold ml-1 underline cursor-pointer">
+                Crear cuenta
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="fixed bottom-4 text-center text-[11px] text-slate-500">
+        SmartLex &copy; 2026 todos los derechos reservados.
+    </footer>
+
+    <!-- LÓGICA DE AUTENTICACIÓN CON SUPABASE -->
+    <script>
+        // CONFIGURACIÓN DE SUPABASE (Reemplaza con tus datos de Project Settings > API)
+        const SUPABASE_URL = 'TU_URL_DE_SUPABASE';
+        const SUPABASE_ANON_KEY = 'TU_ANON_KEY_DE_SUPABASE';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let esModoRegistro = false;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Si el usuario ya está autenticado, redirigir al panel principal
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                window.location.href = 'index.html';
+            }
+        });
+
+        function alternarModo() {
+            esModoRegistro = !esModoRegistro;
+            
+            const subtitle = document.getElementById('form-subtitle');
+            const btnText = document.getElementById('btn-text');
+            const togglePrompt = document.getElementById('toggle-prompt');
+            const toggleBtn = document.getElementById('toggle-btn');
+
+            if (esModoRegistro) {
+                subtitle.innerText = "Crea una cuenta para comenzar a gestionar tus expedientes";
+                btnText.innerText = "Registrar Nueva Cuenta";
+                togglePrompt.innerText = "¿Ya tienes una cuenta?";
+                toggleBtn.innerText = "Iniciar sesión";
+            } else {
+                subtitle.innerText = "Ingresa tus credenciales para acceder a tus expedientes";
+                btnText.innerText = "Iniciar Sesión";
+                togglePrompt.innerText = "¿No tienes una cuenta aún?";
+                toggleBtn.innerText = "Crear cuenta";
+            }
+        }
+
+        async function procesarAutenticacion(event) {
+            event.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+
+            if (esModoRegistro) {
+                // Registrar nuevo usuario
+                const { error } = await supabase.auth.signUp({ email, password });
+                if (error) {
+                    mostrarToast(error.message, 'danger');
+                } else {
+                    mostrarToast("Cuenta creada con éxito. Ya puedes iniciar sesión.", 'success');
+                    alternarModo();
+                }
+            } else {
+                // Iniciar sesión existente
+                const { error } = await supabase.auth.signInWithPassword({ email, password });
+                if (error) {
+                    mostrarToast("Credenciales incorrectas o usuario no verificado", 'danger');
+                } else {
+                    mostrarToast("¡Sesión iniciada con éxito!", 'success');
+                    setTimeout(() => {
+                        window.location.href = 'index.html'; // Redirección al catálogo
+                    }, 1000);
+                }
+            }
+        }
+
+        function mostrarToast(mensaje, tipo = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const bgColor = tipo === 'success' ? 'bg-emerald-600' : (tipo === 'danger' ? 'bg-rose-600' : 'bg-slate-800');
+            const icon = tipo === 'success' ? 'fa-circle-check' : (tipo === 'danger' ? 'fa-triangle-exclamation' : 'fa-circle-info');
+
+            toast.className = `${bgColor} text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center space-x-3 pointer-events-auto toast-enter border border-white/10`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-lg"></i><span class="text-xs font-bold">${mensaje}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => toast.classList.add('toast-show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('toast-show');
+                setTimeout(() => toast.remove(), 350);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
