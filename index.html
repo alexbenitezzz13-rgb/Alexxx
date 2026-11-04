@@ -167,7 +167,7 @@
                             <th class="py-3.5 px-6">Carátula / Juzgado</th>
                             <th class="py-3.5 px-6">Fuero</th>
                             <th class="py-3.5 px-6">Cliente / Partes</th>
-                            <th class="py-3.5 px-6">Estado Procesal (Clic para cambiar)</th>
+                            <th class="py-3.5 px-6">Estado Procesal</th>
                             <th class="py-3.5 px-6">Próx. Audiencia</th>
                             <th class="py-3.5 px-6 text-center">Acciones</th>
                         </tr>
@@ -192,9 +192,6 @@
                 <a href="https://wa.me/595986235713" target="_blank" class="hover:text-emerald-600 transition flex items-center gap-1 font-medium cursor-pointer">
                     <i class="fa-brands fa-whatsapp text-emerald-500"></i> Soporte: 0986 235 713
                 </a>
-                <button onclick="cargarDatosDemo()" class="text-amber-600 hover:text-amber-700 font-semibold underline cursor-pointer">
-                    <i class="fa-solid fa-database mr-1"></i>Cargar Demo
-                </button>
             </div>
         </div>
     </footer>
@@ -295,12 +292,8 @@
         let expedientesFiltrados = [];
 
         document.addEventListener('DOMContentLoaded', () => {
-            if (expedientes.length === 0) {
-                cargarDatosDemo(false);
-            } else {
-                renderizarExpedientes();
-                actualizarEstadisticas();
-            }
+            renderizarExpedientes();
+            actualizarEstadisticas();
         });
 
         function guardarEnStorage() {
@@ -326,6 +319,13 @@
             }, 3000);
         }
 
+        function obtenerClaseBadge(estado) {
+            if (estado === 'Activo') return 'bg-emerald-50 text-emerald-700 border-emerald-200/80';
+            if (estado === 'En Trámite') return 'bg-amber-50 text-amber-700 border-amber-200/80';
+            if (estado === 'Sentenciado') return 'bg-purple-50 text-purple-700 border-purple-200/80';
+            return 'bg-slate-100 text-slate-600 border-slate-200';
+        }
+
         function renderizarExpedientes(lista = expedientes) {
             expedientesFiltrados = lista;
             const tbody = document.getElementById('tabla-expedientes');
@@ -342,11 +342,7 @@
             }
 
             lista.forEach(exp => {
-                let badgeColor = 'bg-slate-100 text-slate-700 border-slate-200';
-                if(exp.estado === 'Activo') badgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-200/80';
-                if(exp.estado === 'En Trámite') badgeColor = 'bg-amber-50 text-amber-700 border-amber-200/80';
-                if(exp.estado === 'Sentenciado') badgeColor = 'bg-purple-50 text-purple-700 border-purple-200/80';
-                if(exp.estado === 'Archivado') badgeColor = 'bg-slate-100 text-slate-600 border-slate-200';
+                const badgeColor = obtenerClaseBadge(exp.estado);
 
                 // Fila Escritorio
                 const tr = document.createElement('tr');
@@ -365,9 +361,12 @@
                         <div class="text-xs text-slate-400">vs. ${exp.contraparte || 'N/A'}</div>
                     </td>
                     <td class="py-4 px-6">
-                        <button onclick="cambiarEstadoRapido('${exp.id}')" title="Clic para alternar estado procesal" class="px-3 py-1 rounded-full text-xs font-extrabold border ${badgeColor} transition hover:scale-105 cursor-pointer">
-                            ${exp.estado} <i class="fa-solid fa-chevron-down text-[9px] ml-1 opacity-70"></i>
-                        </button>
+                        <select onchange="actualizarEstadoDirecto('${exp.id}', this.value)" class="px-3 py-1 rounded-full text-xs font-extrabold border ${badgeColor} transition focus:outline-none cursor-pointer">
+                            <option value="Activo" ${exp.estado === 'Activo' ? 'selected' : ''}>Activo</option>
+                            <option value="En Trámite" ${exp.estado === 'En Trámite' ? 'selected' : ''}>En Trámite</option>
+                            <option value="Sentenciado" ${exp.estado === 'Sentenciado' ? 'selected' : ''}>Sentenciado</option>
+                            <option value="Archivado" ${exp.estado === 'Archivado' ? 'selected' : ''}>Archivado</option>
+                        </select>
                     </td>
                     <td class="py-4 px-6 text-xs font-medium text-slate-600">
                         ${exp.audiencia ? `<span class="bg-amber-50 text-amber-800 border border-amber-200/60 px-2.5 py-1 rounded-lg font-semibold"><i class="fa-regular fa-calendar text-amber-600 mr-1"></i>${exp.audiencia}</span>` : '<span class="text-slate-400 font-normal">Sin fecha</span>'}
@@ -389,7 +388,12 @@
                             <span class="text-xs font-extrabold text-amber-600">${exp.numero}</span>
                             <h3 class="font-bold text-slate-800 text-sm mt-0.5">${exp.caratula}</h3>
                         </div>
-                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${badgeColor}">${exp.estado}</span>
+                        <select onchange="actualizarEstadoDirecto('${exp.id}', this.value)" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${badgeColor} focus:outline-none cursor-pointer">
+                            <option value="Activo" ${exp.estado === 'Activo' ? 'selected' : ''}>Activo</option>
+                            <option value="En Trámite" ${exp.estado === 'En Trámite' ? 'selected' : ''}>En Trámite</option>
+                            <option value="Sentenciado" ${exp.estado === 'Sentenciado' ? 'selected' : ''}>Sentenciado</option>
+                            <option value="Archivado" ${exp.estado === 'Archivado' ? 'selected' : ''}>Archivado</option>
+                        </select>
                     </div>
                     <div class="text-xs text-slate-500 space-y-1 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                         <div><i class="fa-solid fa-building-columns mr-1 text-slate-400"></i> ${exp.juzgado}</div>
@@ -476,13 +480,10 @@
             filtrarExpedientes();
         }
 
-        function cambiarEstadoRapido(id) {
-            const estados = ['Activo', 'En Trámite', 'Sentenciado', 'Archivado'];
+        function actualizarEstadoDirecto(id, nuevoEstado) {
             const exp = expedientes.find(e => e.id === id);
             if (!exp) return;
 
-            const actualIndex = estados.indexOf(exp.estado);
-            const nuevoEstado = estados[(actualIndex + 1) % estados.length];
             exp.estado = nuevoEstado;
 
             guardarEnStorage();
@@ -734,54 +735,7 @@
 
             mostrarToast("Excel estilizado generado correctamente", "success");
         }
-
-        function cargarDatosDemo(notificar = true) {
-            expedientes = [
-                {
-                    id: '1',
-                    numero: '102/2026',
-                    fuero: 'Civil y Comercial',
-                    caratula: 'González María c/ Banco Sudamericano s/ Indemnización',
-                    juzgado: 'Juzgado Civil Nº 4',
-                    estado: 'Activo',
-                    cliente: 'María González',
-                    contraparte: 'Banco Sudamericano',
-                    audiencia: '2026-11-20',
-                    plazo: '2026-11-15',
-                    notas: 'Pendiente peritaje contable e inspección de documentos.'
-                },
-                {
-                    id: '2',
-                    numero: '418/2025',
-                    fuero: 'Laboral',
-                    caratula: 'Ramírez Carlos c/ Constructora del Este s/ Despido',
-                    juzgado: 'Tribunal Laboral 2da Sala',
-                    estado: 'En Trámite',
-                    cliente: 'Carlos Ramírez',
-                    contraparte: 'Constructora del Este',
-                    audiencia: '2026-12-05',
-                    plazo: '2026-11-28',
-                    notas: 'Audiencia de conciliación y presentación de pruebas testimoniales.'
-                },
-                {
-                    id: '3',
-                    numero: '890/2026',
-                    fuero: 'Familia',
-                    caratula: 'Sosa Ana c/ Martinez Pedro s/ Régimen de Visitas',
-                    juzgado: 'Juzgado de Familia Nº 1',
-                    estado: 'Sentenciado',
-                    cliente: 'Ana Sosa',
-                    contraparte: 'Pedro Martinez',
-                    audiencia: '',
-                    plazo: '',
-                    notas: 'Sentencia firme registrada. Notificación enviada a las partes.'
-                }
-            ];
-            guardarEnStorage();
-            renderizarExpedientes();
-            actualizarEstadisticas();
-            if(notificar) mostrarToast("Datos demo cargados con éxito", "info");
-        }
     </script>
 </body>
 </html>
+
