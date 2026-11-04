@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- SDK de Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -32,6 +34,34 @@
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- MODAL DE AUTENTICACIÓN (LOGIN / REGISTRO) -->
+    <div id="auth-container" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 space-y-6 border border-slate-100 animate-fadeIn">
+            <div class="text-center space-y-2">
+                <div class="inline-flex bg-amber-500 p-3 rounded-2xl text-slate-950 font-black shadow-md mb-1">
+                    <i class="fa-solid fa-scale-balanced text-2xl"></i>
+                </div>
+                <h2 class="text-2xl font-extrabold text-slate-900">Smart<span class="text-amber-600 font-normal">Lex</span></h2>
+                <p class="text-xs text-slate-500">Sistema Integral de Gestión Jurídica Segura</p>
+            </div>
+
+            <div class="space-y-4 pt-2">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Correo Electrónico</label>
+                    <input type="email" id="auth-email" placeholder="tucorreo@estudio.com" class="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50 focus:bg-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Contraseña</label>
+                    <input type="password" id="auth-password" placeholder="••••••••" class="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50 focus:bg-white">
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="iniciarSesion()" class="w-full py-3 bg-slate-900 text-white font-bold rounded-xl text-sm hover:bg-slate-800 transition shadow-md cursor-pointer">Iniciar Sesión</button>
+                    <button onclick="registrarUsuario()" class="w-full py-3 bg-amber-500 text-slate-950 font-bold rounded-xl text-sm hover:bg-amber-400 transition shadow-md cursor-pointer">Crear Cuenta</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Notificación Toast Dinámica -->
     <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
@@ -60,6 +90,11 @@
                 <button onclick="abrirModalExpediente()" title="Registrar nuevo expediente" class="bg-amber-500 hover:bg-amber-600 text-slate-950 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition shadow-md flex items-center space-x-2 cursor-pointer">
                     <i class="fa-solid fa-plus text-sm"></i>
                     <span>Nuevo Expediente</span>
+                </button>
+
+                <button onclick="cerrarSesion()" title="Cerrar Sesión" class="bg-slate-800 hover:bg-rose-900/50 text-slate-300 hover:text-white px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center space-x-1.5 border border-slate-700 cursor-pointer">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span class="hidden sm:inline">Salir</span>
                 </button>
             </div>
         </div>
@@ -207,7 +242,7 @@
                 <button onclick="cerrarModalExpediente()" class="text-slate-400 hover:text-white transition cursor-pointer"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             <div class="p-6 overflow-y-auto flex-grow">
-                <form id="form-expediente" onsubmit="guardarExpediente(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <form id="form-expediente" onsubmit="guardarExpedienteSupabase(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <input type="hidden" id="exp-id">
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Nº de Expediente *</label>
@@ -286,18 +321,81 @@
         </div>
     </div>
 
-    <!-- LÓGICA JAVASCRIPT -->
+    <!-- LÓGICA JAVASCRIPT CON SUPABASE -->
     <script>
-        let expedientes = JSON.parse(localStorage.getItem('smartlex_expedientes')) || [];
-        let expedientesFiltrados = [];
+        // CONFIGURACIÓN DE SUPABASE (Reemplaza con tus credenciales)
+        const SUPABASE_URL = 'rxqbkjpmehnjfupxywwl';
+        const SUPABASE_ANON_KEY = 'sb_secret_KgNHQQZFPgTEDHcxZj6EBA_mrVMXFT_';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        document.addEventListener('DOMContentLoaded', () => {
-            renderizarExpedientes();
-            actualizarEstadisticas();
+        let expedientes = [];
+        let expedientesFiltrados = [];
+        let usuarioActual = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            manejarSesion(session);
+
+            supabase.auth.onAuthStateChange((_event, session) => {
+                manejarSesion(session);
+            });
         });
 
-        function guardarEnStorage() {
-            localStorage.setItem('smartlex_expedientes', JSON.stringify(expedientes));
+        function manejarSesion(session) {
+            const authContainer = document.getElementById('auth-container');
+            if (session) {
+                usuarioActual = session.user;
+                authContainer.classList.add('hidden');
+                cargarExpedientesDesdeSupabase();
+            } else {
+                usuarioActual = null;
+                authContainer.classList.remove('hidden');
+            }
+        }
+
+        async function registrarUsuario() {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+
+            const { error } = await supabase.auth.signUp({ email, password });
+            if (error) {
+                mostrarToast(error.message, 'danger');
+            } else {
+                mostrarToast("Cuenta creada con éxito. Ya puedes iniciar sesión.", 'success');
+            }
+        }
+
+        async function iniciarSesion() {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) {
+                mostrarToast("Credenciales incorrectas o usuario no verificado", 'danger');
+            } else {
+                mostrarToast("¡Bienvenido a SmartLex!", 'success');
+            }
+        }
+
+        async function cerrarSesion() {
+            await supabase.auth.signOut();
+            mostrarToast("Sesión cerrada", 'info');
+        }
+
+        async function cargarExpedientesDesdeSupabase() {
+            const { data, error } = await supabase
+                .from('expedientes')
+                .select('*')
+                .order('id', { ascending: false });
+
+            if (error) {
+                mostrarToast("Error al cargar expedientes", "danger");
+                return;
+            }
+
+            expedientes = data || [];
+            renderizarExpedientes();
+            actualizarEstadisticas();
         }
 
         function mostrarToast(mensaje, tipo = 'success') {
@@ -374,7 +472,7 @@
                     <td class="py-4 px-6 text-center space-x-1">
                         <button onclick="verDetalles('${exp.id}')" title="Ver ficha" class="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"><i class="fa-solid fa-eye"></i></button>
                         <button onclick="abrirModalExpediente('${exp.id}')" title="Editar" class="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition cursor-pointer"><i class="fa-solid fa-pen-to-square"></i></button>
-                        <button onclick="eliminarExpediente('${exp.id}')" title="Eliminar" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"><i class="fa-solid fa-trash-can"></i></button>
+                        <button onclick="eliminarExpedienteSupabase('${exp.id}')" title="Eliminar" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"><i class="fa-solid fa-trash-can"></i></button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -404,7 +502,7 @@
                         <div class="space-x-1">
                             <button onclick="verDetalles('${exp.id}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer"><i class="fa-solid fa-eye mr-1"></i>Ver</button>
                             <button onclick="abrirModalExpediente('${exp.id}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer"><i class="fa-solid fa-pen mr-1"></i>Editar</button>
-                            <button onclick="eliminarExpediente('${exp.id}')" class="px-2 py-1 bg-rose-50 text-rose-600 rounded-lg text-xs cursor-pointer"><i class="fa-solid fa-trash"></i></button>
+                            <button onclick="eliminarExpedienteSupabase('${exp.id}')" class="px-2 py-1 bg-rose-50 text-rose-600 rounded-lg text-xs cursor-pointer"><i class="fa-solid fa-trash"></i></button>
                         </div>
                     </div>
                 `;
@@ -480,16 +578,19 @@
             filtrarExpedientes();
         }
 
-        function actualizarEstadoDirecto(id, nuevoEstado) {
-            const exp = expedientes.find(e => e.id === id);
-            if (!exp) return;
+        async function actualizarEstadoDirecto(id, nuevoEstado) {
+            const { error } = await supabase
+                .from('expedientes')
+                .update({ estado: nuevoEstado })
+                .eq('id', id);
 
-            exp.estado = nuevoEstado;
+            if (error) {
+                mostrarToast("Error al actualizar el estado", "danger");
+                return;
+            }
 
-            guardarEnStorage();
-            actualizarEstadisticas();
-            filtrarExpedientes();
             mostrarToast(`Estado actualizado a "${nuevoEstado}"`, 'success');
+            cargarExpedientesDesdeSupabase();
         }
 
         function abrirModalExpediente(id = null) {
@@ -500,7 +601,7 @@
 
             if (id) {
                 titulo.innerText = "Editar Expediente";
-                const exp = expedientes.find(e => e.id === id);
+                const exp = expedientes.find(e => e.id == id);
                 if (exp) {
                     document.getElementById('exp-id').value = exp.id;
                     document.getElementById('exp-numero').value = exp.numero;
@@ -509,10 +610,10 @@
                     document.getElementById('exp-juzgado').value = exp.juzgado;
                     document.getElementById('exp-estado').value = exp.estado;
                     document.getElementById('exp-cliente').value = exp.cliente;
-                    document.getElementById('exp-contraparte').value = exp.contraparte;
-                    document.getElementById('exp-audiencia').value = exp.audiencia;
-                    document.getElementById('exp-plazo').value = exp.plazo;
-                    document.getElementById('exp-notas').value = exp.notas;
+                    document.getElementById('exp-contraparte').value = exp.contraparte || '';
+                    document.getElementById('exp-audiencia').value = exp.audiencia || '';
+                    document.getElementById('exp-plazo').value = exp.plazo || '';
+                    document.getElementById('exp-notas').value = exp.notas || '';
                 }
             } else {
                 titulo.innerText = "Registrar Nuevo Expediente";
@@ -524,11 +625,11 @@
             document.getElementById('modal-expediente').classList.add('hidden');
         }
 
-        function guardarExpediente(event) {
+        async function guardarExpedienteSupabase(event) {
             event.preventDefault();
             const id = document.getElementById('exp-id').value;
+            
             const nuevoExp = {
-                id: id ? id : Date.now().toString(),
                 numero: document.getElementById('exp-numero').value,
                 fuero: document.getElementById('exp-fuero').value,
                 caratula: document.getElementById('exp-caratula').value,
@@ -536,38 +637,58 @@
                 estado: document.getElementById('exp-estado').value,
                 cliente: document.getElementById('exp-cliente').value,
                 contraparte: document.getElementById('exp-contraparte').value,
-                audiencia: document.getElementById('exp-audiencia').value,
-                plazo: document.getElementById('exp-plazo').value,
-                notas: document.getElementById('exp-notas').value
+                audiencia: document.getElementById('exp-audiencia').value || null,
+                plazo: document.getElementById('exp-plazo').value || null,
+                notas: document.getElementById('exp-notas').value,
+                user_id: usuarioActual.id
             };
 
             if (id) {
-                const index = expedientes.findIndex(e => e.id === id);
-                if (index !== -1) expedientes[index] = nuevoExp;
+                const { error } = await supabase
+                    .from('expedientes')
+                    .update(nuevoExp)
+                    .eq('id', id);
+
+                if (error) {
+                    mostrarToast("Error al actualizar expediente", "danger");
+                    return;
+                }
                 mostrarToast("Expediente actualizado correctamente");
             } else {
-                expedientes.unshift(nuevoExp);
+                const { error } = await supabase
+                    .from('expedientes')
+                    .insert([nuevoExp]);
+
+                if (error) {
+                    mostrarToast("Error al registrar expediente", "danger");
+                    return;
+                }
                 mostrarToast("Expediente registrado exitosamente");
             }
 
-            guardarEnStorage();
-            renderizarExpedientes();
-            actualizarEstadisticas();
             cerrarModalExpediente();
+            cargarExpedientesDesdeSupabase();
         }
 
-        function eliminarExpediente(id) {
+        async function eliminarExpedienteSupabase(id) {
             if (confirm("¿Confirmas que deseas eliminar este expediente del registro?")) {
-                expedientes = expedientes.filter(e => e.id !== id);
-                guardarEnStorage();
-                renderizarExpedientes();
-                actualizarEstadisticas();
+                const { error } = await supabase
+                    .from('expedientes')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) {
+                    mostrarToast("No se pudo eliminar el registro", "danger");
+                    return;
+                }
+
+                cargarExpedientesDesdeSupabase();
                 mostrarToast("Expediente eliminado del sistema", "danger");
             }
         }
 
         function verDetalles(id) {
-            const exp = expedientes.find(e => e.id === id);
+            const exp = expedientes.find(e => e.id == id);
             if (!exp) return;
 
             const contenedor = document.getElementById('detalle-contenido');
@@ -738,4 +859,3 @@
     </script>
 </body>
 </html>
-
