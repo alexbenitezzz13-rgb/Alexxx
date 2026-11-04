@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartLex | Gestión Legal Integral</title>
+    <!-- Tailwind CSS & FontAwesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            800: '#0f172a',
+                            900: '#0a0f1d',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .toast-enter { transform: translateY(-100%); opacity: 0; }
+        .toast-show { transform: translateY(0); opacity: 1; transition: all 0.35s ease-out; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Notificación Toast Dinámica -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Header / Navbar -->
+    <header class="bg-gradient-to-r from-brand-900 to-slate-900 text-white shadow-md sticky top-0 z-30 border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex justify-between items-center">
+            <!-- Logo / Brand Interactivo -->
+            <div class="flex items-center space-x-3 cursor-pointer group" onclick="limpiarFiltros()" title="Restablecer vista principal">
+                <div class="bg-amber-500 group-hover:bg-amber-400 p-2.5 rounded-xl text-slate-950 font-black shadow-md transition">
+                    <i class="fa-solid fa-scale-balanced text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold tracking-tight">Smart<span class="text-amber-400 font-normal">Lex</span></h1>
+                    <p class="text-[11px] text-slate-400">Sistema Integral de Gestión Jurídica</p>
+                </div>
+            </div>
+
+            <!-- Acciones Principales Header -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <button onclick="exportarExcelEstilizado()" title="Exportar reporte diseñado a Excel" class="bg-emerald-700 hover:bg-emerald-600 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center space-x-2 shadow-sm cursor-pointer">
+                    <i class="fa-solid fa-file-excel text-emerald-200 text-base"></i>
+                    <span class="hidden sm:inline">Exportar Excel</span>
+                </button>
+
+                <button onclick="abrirModalExpediente()" title="Registrar nuevo expediente" class="bg-amber-500 hover:bg-amber-600 text-slate-950 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition shadow-md flex items-center space-x-2 cursor-pointer">
+                    <i class="fa-solid fa-plus text-sm"></i>
+                    <span>Nuevo Expediente</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-grow w-full space-y-6">
+        
+        <!-- Tarjetas Interactivas de Estadísticas (Dashboard KPI) -->
+        <section class="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+            <div onclick="filtrarPorTarjeta('')" title="Ver todos los expedientes" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 hover:border-amber-500 cursor-pointer transition transform hover:-translate-y-1 hover:shadow-md group">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-[11px] font-bold tracking-wider text-slate-400 group-hover:text-amber-600 transition">TOTALES</span>
+                    <div class="p-2 bg-slate-100 text-slate-600 rounded-lg group-hover:bg-amber-50 group-hover:text-amber-600 transition"><i class="fa-solid fa-folder"></i></div>
+                </div>
+                <h3 id="stat-total" class="text-2xl font-extrabold text-slate-900">0</h3>
+                <span class="text-[10px] text-slate-400 font-medium">Ver catálogo completo</span>
+            </div>
+
+            <div onclick="filtrarPorTarjeta('Activo')" title="Filtrar expedientes activos" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 hover:border-emerald-500 cursor-pointer transition transform hover:-translate-y-1 hover:shadow-md group">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-[11px] font-bold tracking-wider text-emerald-600">ACTIVOS</span>
+                    <div class="p-2 bg-emerald-50 text-emerald-600 rounded-lg group-hover:bg-emerald-100 transition"><i class="fa-solid fa-circle-play"></i></div>
+                </div>
+                <h3 id="stat-activos" class="text-2xl font-extrabold text-slate-900">0</h3>
+                <span class="text-[10px] text-emerald-600 font-semibold">En curso judicial</span>
+            </div>
+
+            <div onclick="filtrarPorTarjeta('En Trámite')" title="Filtrar expedientes en trámite" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 hover:border-amber-500 cursor-pointer transition transform hover:-translate-y-1 hover:shadow-md group">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-[11px] font-bold tracking-wider text-amber-600">EN TRÁMITE</span>
+                    <div class="p-2 bg-amber-50 text-amber-600 rounded-lg group-hover:bg-amber-100 transition"><i class="fa-solid fa-hourglass-half"></i></div>
+                </div>
+                <h3 id="stat-tramite" class="text-2xl font-extrabold text-slate-900">0</h3>
+                <span class="text-[10px] text-amber-600 font-semibold">Resolución pendiente</span>
+            </div>
+
+            <div onclick="filtrarPorTarjeta('Sentenciado')" title="Filtrar expedientes sentenciados" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 hover:border-purple-500 cursor-pointer transition transform hover:-translate-y-1 hover:shadow-md group">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-[11px] font-bold tracking-wider text-purple-600">SENTENCIADOS</span>
+                    <div class="p-2 bg-purple-50 text-purple-600 rounded-lg group-hover:bg-purple-100 transition"><i class="fa-solid fa-gavel"></i></div>
+                </div>
+                <h3 id="stat-sentencia" class="text-2xl font-extrabold text-slate-900">0</h3>
+                <span class="text-[10px] text-purple-600 font-semibold">Fallo o dictamen</span>
+            </div>
+
+            <div onclick="filtrarPorAudiencias()" title="Filtrar expedientes con próximas audiencias" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 hover:border-rose-500 cursor-pointer transition transform hover:-translate-y-1 hover:shadow-md group col-span-2 lg:col-span-1">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-[11px] font-bold tracking-wider text-rose-600">AUDIENCIAS</span>
+                    <div class="p-2 bg-rose-50 text-rose-600 rounded-lg group-hover:bg-rose-100 transition"><i class="fa-solid fa-calendar-check"></i></div>
+                </div>
+                <h3 id="stat-audiencias" class="text-2xl font-extrabold text-slate-900">0</h3>
+                <span class="text-[10px] text-rose-600 font-semibold">Próximos compromisos</span>
+            </div>
+        </section>
+
+        <!-- Barra de Búsqueda y Filtros Interactivos -->
+        <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80">
+            <div class="flex flex-col md:flex-row gap-3 justify-between items-center">
+                <div class="w-full md:w-1/2 relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400"><i class="fa-solid fa-magnifying-glass"></i></span>
+                    <input type="text" id="input-buscar" oninput="filtrarExpedientes()" placeholder="Buscar por carátula, nº expediente, cliente o juzgado..." class="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                    <button onclick="limpiarBuscador()" id="btn-clear-search" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 hidden cursor-pointer"><i class="fa-solid fa-circle-xmark"></i></button>
+                </div>
+                <div class="flex flex-wrap gap-2 w-full md:w-auto justify-end">
+                    <select id="filtro-fuero" onchange="filtrarExpedientes()" class="border border-slate-200 bg-slate-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white font-medium text-slate-700 cursor-pointer">
+                        <option value="">Todos los Fueros</option>
+                        <option value="Civil y Comercial">Civil y Comercial</option>
+                        <option value="Penal">Penal</option>
+                        <option value="Laboral">Laboral</option>
+                        <option value="Familia">Familia</option>
+                        <option value="Administrativo">Administrativo</option>
+                    </select>
+                    <select id="filtro-estado" onchange="filtrarExpedientes()" class="border border-slate-200 bg-slate-50 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white font-medium text-slate-700 cursor-pointer">
+                        <option value="">Todos los Estados</option>
+                        <option value="Activo">Activo</option>
+                        <option value="En Trámite">En Trámite</option>
+                        <option value="Sentenciado">Sentenciado</option>
+                        <option value="Archivado">Archivado</option>
+                    </select>
+                    <button onclick="limpiarFiltros()" class="border border-slate-200 text-slate-600 hover:bg-slate-100 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition flex items-center gap-2 cursor-pointer" title="Restablecer filtros">
+                        <i class="fa-solid fa-rotate-left"></i>
+                        <span class="hidden sm:inline">Limpiar</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Listado Principal (Tabla Desktop & Tarjetas Mobile) -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div class="flex items-center space-x-3">
+                    <h2 class="font-bold text-slate-800 text-base">Catálogo de Expedientes</h2>
+                    <span id="badge-filtro-activo" class="hidden text-xs bg-amber-100 text-amber-800 border border-amber-300/50 font-bold px-2.5 py-0.5 rounded-full"></span>
+                </div>
+                <span id="contador-resultados" class="text-xs text-slate-500 font-semibold bg-slate-200/60 px-3 py-1 rounded-full">Mostrando 0 registros</span>
+            </div>
+
+            <!-- Vista Tabla (Escritorio) -->
+            <div class="hidden md:block overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-slate-100/70 text-slate-500 font-bold border-b border-slate-200/80 text-[11px] uppercase tracking-wider">
+                            <th class="py-3.5 px-6">Nº Expediente</th>
+                            <th class="py-3.5 px-6">Carátula / Juzgado</th>
+                            <th class="py-3.5 px-6">Fuero</th>
+                            <th class="py-3.5 px-6">Cliente / Partes</th>
+                            <th class="py-3.5 px-6">Estado Procesal (Clic para cambiar)</th>
+                            <th class="py-3.5 px-6">Próx. Audiencia</th>
+                            <th class="py-3.5 px-6 text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-expedientes" class="divide-y divide-slate-100 text-slate-700"></tbody>
+                </table>
+            </div>
+
+            <!-- Vista Tarjetas (Móvil) -->
+            <div id="cards-expedientes" class="block md:hidden divide-y divide-slate-100"></div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-2">
+            <div class="flex items-center space-x-2">
+                <span class="font-bold text-slate-700">SmartLex</span>
+                <span>&copy; 2026 Todos los derechos reservados.</span>
+            </div>
+            <div class="flex items-center space-x-4 text-slate-400">
+                <a href="https://wa.me/595986235713" target="_blank" class="hover:text-emerald-600 transition flex items-center gap-1 font-medium cursor-pointer">
+                    <i class="fa-brands fa-whatsapp text-emerald-500"></i> Soporte: 0986 235 713
+                </a>
+                <button onclick="cargarDatosDemo()" class="text-amber-600 hover:text-amber-700 font-semibold underline cursor-pointer">
+                    <i class="fa-solid fa-database mr-1"></i>Cargar Demo
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <!-- MODAL NUEVO / EDITAR EXPEDIENTE -->
+    <div id="modal-expediente" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-fadeIn border border-slate-100">
+            <div class="px-6 py-4 bg-brand-900 text-white flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-folder-plus text-amber-400"></i>
+                    <h3 id="modal-titulo" class="font-bold text-lg">Registrar Nuevo Expediente</h3>
+                </div>
+                <button onclick="cerrarModalExpediente()" class="text-slate-400 hover:text-white transition cursor-pointer"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-grow">
+                <form id="form-expediente" onsubmit="guardarExpediente(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <input type="hidden" id="exp-id">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Nº de Expediente *</label>
+                        <input type="text" id="exp-numero" required placeholder="Ej: 1042/2026" class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50 focus:bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Fuero Judicial *</label>
+                        <select id="exp-fuero" required class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50 focus:bg-white cursor-pointer">
+                            <option value="Civil y Comercial">Civil y Comercial</option>
+                            <option value="Penal">Penal</option>
+                            <option value="Laboral">Laboral</option>
+                            <option value="Familia">Familia</option>
+                            <option value="Administrativo">Administrativo</option>
+                        </select>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Carátula / Causa Judicial *</label>
+                        <input type="text" id="exp-caratula" required placeholder="Ej: Perez Juan c/ Gomez Maria s/ Daños y Perjuicios" class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50 focus:bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Juzgado / Tribunal *</label>
+                        <input type="text" id="exp-juzgado" required placeholder="Ej: Juzgado de 1ra Instancia N° 2" class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50 focus:bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Estado Procesal *</label>
+                        <select id="exp-estado" required class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50 focus:bg-white cursor-pointer">
+                            <option value="Activo">Activo</option>
+                            <option value="En Trámite">En Trámite</option>
+                            <option value="Sentenciado">Sentenciado</option>
+                            <option value="Archivado">Archivado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Cliente Representado *</label>
+                        <input type="text" id="exp-cliente" required placeholder="Nombre completo del cliente" class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50 focus:bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Contraparte</label>
+                        <input type="text" id="exp-contraparte" placeholder="Nombre de la contraparte" class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50 focus:bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Fecha Próxima Audiencia</label>
+                        <input type="date" id="exp-audiencia" class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50 focus:bg-white cursor-pointer">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Plazo Legal / Vencimiento</label>
+                        <input type="date" id="exp-plazo" class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50 focus:bg-white cursor-pointer">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Notas u Observaciones Internas</label>
+                        <textarea id="exp-notas" rows="3" placeholder="Anotaciones clave sobre testigos, pruebas o estrategia legal..." class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none bg-slate-50 focus:bg-white"></textarea>
+                    </div>
+                    <div class="sm:col-span-2 flex justify-end space-x-3 mt-4 pt-4 border-t border-slate-100">
+                        <button type="button" onclick="cerrarModalExpediente()" class="px-4 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer">Cancelar</button>
+                        <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold rounded-xl text-sm transition shadow-md cursor-pointer">Guardar Registro</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DETALLE DE EXPEDIENTE -->
+    <div id="modal-detalle" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100">
+            <div class="px-6 py-4 bg-brand-900 text-white flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-id-card text-amber-400"></i>
+                    <h3 class="font-bold text-lg">Ficha Completa del Expediente</h3>
+                </div>
+                <button onclick="cerrarModalDetalle()" class="text-slate-400 hover:text-white transition cursor-pointer"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div id="detalle-contenido" class="p-6 space-y-4 text-sm text-slate-700 max-h-[80vh] overflow-y-auto"></div>
+            <div class="px-6 py-3 bg-slate-50 border-t border-slate-100 flex justify-end">
+                <button onclick="cerrarModalDetalle()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl text-sm transition cursor-pointer">Cerrar Ficha</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LÓGICA JAVASCRIPT -->
+    <script>
+        let expedientes = JSON.parse(localStorage.getItem('smartlex_expedientes')) || [];
+        let expedientesFiltrados = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (expedientes.length === 0) {
+                cargarDatosDemo(false);
+            } else {
+                renderizarExpedientes();
+                actualizarEstadisticas();
+            }
+        });
+
+        function guardarEnStorage() {
+            localStorage.setItem('smartlex_expedientes', JSON.stringify(expedientes));
+        }
+
+        function mostrarToast(mensaje, tipo = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const bgColor = tipo === 'success' ? 'bg-emerald-600' : (tipo === 'danger' ? 'bg-rose-600' : 'bg-slate-800');
+            const icon = tipo === 'success' ? 'fa-circle-check' : (tipo === 'danger' ? 'fa-trash-can' : 'fa-circle-info');
+
+            toast.className = `${bgColor} text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center space-x-3 pointer-events-auto toast-enter border border-white/10`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-lg"></i><span class="text-xs font-bold">${mensaje}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => toast.classList.add('toast-show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('toast-show');
+                setTimeout(() => toast.remove(), 350);
+            }, 3000);
+        }
+
+        function renderizarExpedientes(lista = expedientes) {
+            expedientesFiltrados = lista;
+            const tbody = document.getElementById('tabla-expedientes');
+            const cardsContainer = document.getElementById('cards-expedientes');
+            tbody.innerHTML = '';
+            cardsContainer.innerHTML = '';
+
+            if (lista.length === 0) {
+                const emptyHTML = `<div class="text-center py-12 text-slate-400 font-semibold">No se encontraron expedientes registrados.</div>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-slate-400 font-semibold">No se encontraron expedientes registrados.</td></tr>`;
+                cardsContainer.innerHTML = emptyHTML;
+                document.getElementById('contador-resultados').innerText = `Mostrando 0 registros`;
+                return;
+            }
+
+            lista.forEach(exp => {
+                let badgeColor = 'bg-slate-100 text-slate-700 border-slate-200';
+                if(exp.estado === 'Activo') badgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-200/80';
+                if(exp.estado === 'En Trámite') badgeColor = 'bg-amber-50 text-amber-700 border-amber-200/80';
+                if(exp.estado === 'Sentenciado') badgeColor = 'bg-purple-50 text-purple-700 border-purple-200/80';
+                if(exp.estado === 'Archivado') badgeColor = 'bg-slate-100 text-slate-600 border-slate-200';
+
+                // Fila Escritorio
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-amber-50/30 transition border-b border-slate-100';
+                tr.innerHTML = `
+                    <td class="py-4 px-6 font-extrabold text-slate-900">${exp.numero}</td>
+                    <td class="py-4 px-6">
+                        <div class="font-bold text-slate-800">${exp.caratula}</div>
+                        <div class="text-xs text-slate-400 flex items-center gap-1 mt-0.5"><i class="fa-solid fa-building-columns text-[10px]"></i> ${exp.juzgado}</div>
+                    </td>
+                    <td class="py-4 px-6">
+                        <span class="text-[11px] bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg font-bold border border-slate-200/60">${exp.fuero}</span>
+                    </td>
+                    <td class="py-4 px-6">
+                        <div class="text-slate-800 font-semibold">${exp.cliente}</div>
+                        <div class="text-xs text-slate-400">vs. ${exp.contraparte || 'N/A'}</div>
+                    </td>
+                    <td class="py-4 px-6">
+                        <button onclick="cambiarEstadoRapido('${exp.id}')" title="Clic para alternar estado procesal" class="px-3 py-1 rounded-full text-xs font-extrabold border ${badgeColor} transition hover:scale-105 cursor-pointer">
+                            ${exp.estado} <i class="fa-solid fa-chevron-down text-[9px] ml-1 opacity-70"></i>
+                        </button>
+                    </td>
+                    <td class="py-4 px-6 text-xs font-medium text-slate-600">
+                        ${exp.audiencia ? `<span class="bg-amber-50 text-amber-800 border border-amber-200/60 px-2.5 py-1 rounded-lg font-semibold"><i class="fa-regular fa-calendar text-amber-600 mr-1"></i>${exp.audiencia}</span>` : '<span class="text-slate-400 font-normal">Sin fecha</span>'}
+                    </td>
+                    <td class="py-4 px-6 text-center space-x-1">
+                        <button onclick="verDetalles('${exp.id}')" title="Ver ficha" class="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"><i class="fa-solid fa-eye"></i></button>
+                        <button onclick="abrirModalExpediente('${exp.id}')" title="Editar" class="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition cursor-pointer"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button onclick="eliminarExpediente('${exp.id}')" title="Eliminar" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"><i class="fa-solid fa-trash-can"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+
+                // Tarjeta Móvil
+                const card = document.createElement('div');
+                card.className = 'p-4 space-y-3';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start gap-2">
+                        <div>
+                            <span class="text-xs font-extrabold text-amber-600">${exp.numero}</span>
+                            <h3 class="font-bold text-slate-800 text-sm mt-0.5">${exp.caratula}</h3>
+                        </div>
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${badgeColor}">${exp.estado}</span>
+                    </div>
+                    <div class="text-xs text-slate-500 space-y-1 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <div><i class="fa-solid fa-building-columns mr-1 text-slate-400"></i> ${exp.juzgado}</div>
+                        <div><i class="fa-solid fa-user mr-1 text-slate-400"></i> Cliente: <strong class="text-slate-700">${exp.cliente}</strong></div>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 border-t border-slate-100">
+                        <span class="text-xs text-slate-500">${exp.audiencia ? `<i class="fa-regular fa-calendar text-amber-600 mr-1"></i>${exp.audiencia}` : 'Sin fecha'}</span>
+                        <div class="space-x-1">
+                            <button onclick="verDetalles('${exp.id}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer"><i class="fa-solid fa-eye mr-1"></i>Ver</button>
+                            <button onclick="abrirModalExpediente('${exp.id}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer"><i class="fa-solid fa-pen mr-1"></i>Editar</button>
+                            <button onclick="eliminarExpediente('${exp.id}')" class="px-2 py-1 bg-rose-50 text-rose-600 rounded-lg text-xs cursor-pointer"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+                `;
+                cardsContainer.appendChild(card);
+            });
+
+            document.getElementById('contador-resultados').innerText = `Mostrando ${lista.length} de ${expedientes.length} registros`;
+        }
+
+        function actualizarEstadisticas() {
+            document.getElementById('stat-total').innerText = expedientes.length;
+            document.getElementById('stat-activos').innerText = expedientes.filter(e => e.estado === 'Activo').length;
+            document.getElementById('stat-tramite').innerText = expedientes.filter(e => e.estado === 'En Trámite').length;
+            document.getElementById('stat-sentencia').innerText = expedientes.filter(e => e.estado === 'Sentenciado').length;
+            document.getElementById('stat-audiencias').innerText = expedientes.filter(e => e.audiencia && new Date(e.audiencia) >= new Date()).length;
+        }
+
+        function filtrarExpedientes() {
+            const texto = document.getElementById('input-buscar').value.toLowerCase();
+            const fuero = document.getElementById('filtro-fuero').value;
+            const estado = document.getElementById('filtro-estado').value;
+
+            document.getElementById('btn-clear-search').classList.toggle('hidden', texto === '');
+
+            const filtrados = expedientes.filter(exp => {
+                const coincideTexto = exp.caratula.toLowerCase().includes(texto) || exp.numero.toLowerCase().includes(texto) || exp.cliente.toLowerCase().includes(texto) || exp.juzgado.toLowerCase().includes(texto);
+                const coincideFuero = fuero === "" || exp.fuero === fuero;
+                const coincideEstado = estado === "" || exp.estado === estado;
+                return coincideTexto && coincideFuero && coincideEstado;
+            });
+
+            renderizarExpedientes(filtrados);
+        }
+
+        function filtrarPorTarjeta(estado) {
+            document.getElementById('filtro-estado').value = estado;
+            const badge = document.getElementById('badge-filtro-activo');
+            if(estado) {
+                badge.innerText = `Filtro: ${estado}`;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+            filtrarExpedientes();
+            mostrarToast(estado ? `Filtrando por: ${estado}` : "Mostrando todos los expedientes", "info");
+        }
+
+        function filtrarPorAudiencias() {
+            document.getElementById('filtro-estado').value = '';
+            document.getElementById('filtro-fuero').value = '';
+            document.getElementById('input-buscar').value = '';
+            
+            const badge = document.getElementById('badge-filtro-activo');
+            badge.innerText = `Filtro: Próximas Audiencias`;
+            badge.classList.remove('hidden');
+
+            const filtrados = expedientes.filter(exp => exp.audiencia && new Date(exp.audiencia) >= new Date());
+            renderizarExpedientes(filtrados);
+            mostrarToast("Filtrando por próximas audiencias", "info");
+        }
+
+        function limpiarFiltros() {
+            document.getElementById('input-buscar').value = '';
+            document.getElementById('filtro-fuero').value = '';
+            document.getElementById('filtro-estado').value = '';
+            document.getElementById('badge-filtro-activo').classList.add('hidden');
+            filtrarExpedientes();
+            mostrarToast("Filtros restablecidos", "info");
+        }
+
+        function limpiarBuscador() {
+            document.getElementById('input-buscar').value = '';
+            filtrarExpedientes();
+        }
+
+        function cambiarEstadoRapido(id) {
+            const estados = ['Activo', 'En Trámite', 'Sentenciado', 'Archivado'];
+            const exp = expedientes.find(e => e.id === id);
+            if (!exp) return;
+
+            const actualIndex = estados.indexOf(exp.estado);
+            const nuevoEstado = estados[(actualIndex + 1) % estados.length];
+            exp.estado = nuevoEstado;
+
+            guardarEnStorage();
+            actualizarEstadisticas();
+            filtrarExpedientes();
+            mostrarToast(`Estado actualizado a "${nuevoEstado}"`, 'success');
+        }
+
+        function abrirModalExpediente(id = null) {
+            const modal = document.getElementById('modal-expediente');
+            const titulo = document.getElementById('modal-titulo');
+            document.getElementById('form-expediente').reset();
+            document.getElementById('exp-id').value = '';
+
+            if (id) {
+                titulo.innerText = "Editar Expediente";
+                const exp = expedientes.find(e => e.id === id);
+                if (exp) {
+                    document.getElementById('exp-id').value = exp.id;
+                    document.getElementById('exp-numero').value = exp.numero;
+                    document.getElementById('exp-fuero').value = exp.fuero;
+                    document.getElementById('exp-caratula').value = exp.caratula;
+                    document.getElementById('exp-juzgado').value = exp.juzgado;
+                    document.getElementById('exp-estado').value = exp.estado;
+                    document.getElementById('exp-cliente').value = exp.cliente;
+                    document.getElementById('exp-contraparte').value = exp.contraparte;
+                    document.getElementById('exp-audiencia').value = exp.audiencia;
+                    document.getElementById('exp-plazo').value = exp.plazo;
+                    document.getElementById('exp-notas').value = exp.notas;
+                }
+            } else {
+                titulo.innerText = "Registrar Nuevo Expediente";
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function cerrarModalExpediente() {
+            document.getElementById('modal-expediente').classList.add('hidden');
+        }
+
+        function guardarExpediente(event) {
+            event.preventDefault();
+            const id = document.getElementById('exp-id').value;
+            const nuevoExp = {
+                id: id ? id : Date.now().toString(),
+                numero: document.getElementById('exp-numero').value,
+                fuero: document.getElementById('exp-fuero').value,
+                caratula: document.getElementById('exp-caratula').value,
+                juzgado: document.getElementById('exp-juzgado').value,
+                estado: document.getElementById('exp-estado').value,
+                cliente: document.getElementById('exp-cliente').value,
+                contraparte: document.getElementById('exp-contraparte').value,
+                audiencia: document.getElementById('exp-audiencia').value,
+                plazo: document.getElementById('exp-plazo').value,
+                notas: document.getElementById('exp-notas').value
+            };
+
+            if (id) {
+                const index = expedientes.findIndex(e => e.id === id);
+                if (index !== -1) expedientes[index] = nuevoExp;
+                mostrarToast("Expediente actualizado correctamente");
+            } else {
+                expedientes.unshift(nuevoExp);
+                mostrarToast("Expediente registrado exitosamente");
+            }
+
+            guardarEnStorage();
+            renderizarExpedientes();
+            actualizarEstadisticas();
+            cerrarModalExpediente();
+        }
+
+        function eliminarExpediente(id) {
+            if (confirm("¿Confirmas que deseas eliminar este expediente del registro?")) {
+                expedientes = expedientes.filter(e => e.id !== id);
+                guardarEnStorage();
+                renderizarExpedientes();
+                actualizarEstadisticas();
+                mostrarToast("Expediente eliminado del sistema", "danger");
+            }
+        }
+
+        function verDetalles(id) {
+            const exp = expedientes.find(e => e.id === id);
+            if (!exp) return;
+
+            const contenedor = document.getElementById('detalle-contenido');
+            contenedor.innerHTML = `
+                <div class="space-y-3">
+                    <div class="border-b border-slate-100 pb-3">
+                        <strong class="text-slate-400 block text-[10px] font-bold tracking-wider">EXPEDIENTE Nº</strong>
+                        <span class="text-xl font-extrabold text-amber-600">${exp.numero}</span>
+                    </div>
+                    <div>
+                        <strong class="text-slate-400 block text-[10px] font-bold tracking-wider">CARÁTULA DE LA CAUSA</strong>
+                        <p class="font-bold text-slate-800 text-sm">${exp.caratula}</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 pt-2">
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <strong class="text-slate-400 block text-[10px]">FUERO</strong>
+                            <span class="font-bold text-slate-700">${exp.fuero}</span>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <strong class="text-slate-400 block text-[10px]">JUZGADO</strong>
+                            <span class="font-bold text-slate-700">${exp.juzgado}</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <strong class="text-slate-400 block text-[10px]">CLIENTE</strong>
+                            <span class="font-bold text-slate-700">${exp.cliente}</span>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <strong class="text-slate-400 block text-[10px]">CONTRAPARTE</strong>
+                            <span class="font-bold text-slate-700">${exp.contraparte || 'N/A'}</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <strong class="text-slate-400 block text-[10px]">PRÓXIMA AUDIENCIA</strong>
+                            <span class="font-bold text-slate-700">${exp.audiencia || 'Sin programar'}</span>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <strong class="text-slate-400 block text-[10px]">PLAZO LEGAL</strong>
+                            <span class="font-bold text-slate-700">${exp.plazo || 'Sin fecha'}</span>
+                        </div>
+                    </div>
+                    <div>
+                        <strong class="text-slate-400 block text-[10px] font-bold mb-1">NOTAS / ESTRATEGIA LEGAL</strong>
+                        <div class="bg-amber-50/50 p-3.5 rounded-xl border border-amber-200/60 text-xs text-slate-700 leading-relaxed font-medium">${exp.notas || 'Sin anotaciones adicionales.'}</div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modal-detalle').classList.remove('hidden');
+        }
+
+        function cerrarModalDetalle() {
+            document.getElementById('modal-detalle').classList.add('hidden');
+        }
+
+        // EXPORTACIÓN EXCEL ESTILIZADA
+        function exportarExcelEstilizado() {
+            const dataTarget = expedientesFiltrados.length > 0 ? expedientesFiltrados : expedientes;
+
+            if (dataTarget.length === 0) {
+                mostrarToast("No hay registros para exportar", "danger");
+                return;
+            }
+
+            const hoy = new Date().toLocaleDateString('es-ES');
+
+            let excelHTML = `
+                <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+                <head>
+                    <meta charset="utf-8" />
+                    <style>
+                        body { font-family: 'Segoe UI', Arial, sans-serif; }
+                        .title-cell { font-size: 16pt; font-weight: bold; color: #0f172a; padding: 10px 0; }
+                        .subtitle-cell { font-size: 10pt; color: #64748b; padding-bottom: 15px; }
+                        th {
+                            background-color: #0f172a;
+                            color: #ffffff;
+                            font-weight: bold;
+                            font-size: 11pt;
+                            text-align: left;
+                            padding: 10px 12px;
+                            border: 1px solid #1e293b;
+                        }
+                        td {
+                            font-size: 10pt;
+                            padding: 8px 12px;
+                            border: 1px solid #cbd5e1;
+                            vertical-align: middle;
+                        }
+                        .row-even { background-color: #ffffff; }
+                        .row-odd { background-color: #f8fafc; }
+                        .badge-activo { background-color: #dcfce7; color: #15803d; font-weight: bold; text-align: center; }
+                        .badge-tramite { background-color: #fef3c7; color: #b45309; font-weight: bold; text-align: center; }
+                        .badge-sentenciado { background-color: #f3e8ff; color: #7e22ce; font-weight: bold; text-align: center; }
+                        .badge-archivado { background-color: #f1f5f9; color: #475569; text-align: center; }
+                        .num-cell { font-weight: bold; color: #d97706; text-align: center; }
+                    </style>
+                </head>
+                <body>
+                    <table>
+                        <tr>
+                            <td colspan="10" class="title-cell">SmartLex &mdash; Reporte de Expedientes Judiciales</td>
+                        </tr>
+                        <tr>
+                            <td colspan="10" class="subtitle-cell">Generado el: ${hoy} | Soporte: 0986 235 713</td>
+                        </tr>
+                        <tr></tr>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>N° Expediente</th>
+                                <th>Fuero</th>
+                                <th>Carátula / Causa</th>
+                                <th>Juzgado</th>
+                                <th>Estado</th>
+                                <th>Cliente</th>
+                                <th>Contraparte</th>
+                                <th>Próx. Audiencia</th>
+                                <th>Notas u Observaciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            dataTarget.forEach((exp, i) => {
+                const rowClass = i % 2 === 0 ? 'row-even' : 'row-odd';
+                let stateClass = 'badge-archivado';
+                if (exp.estado === 'Activo') stateClass = 'badge-activo';
+                if (exp.estado === 'En Trámite') stateClass = 'badge-tramite';
+                if (exp.estado === 'Sentenciado') stateClass = 'badge-sentenciado';
+
+                excelHTML += `
+                    <tr class="${rowClass}">
+                        <td align="center" style="font-weight:bold; color:#64748b;">${i + 1}</td>
+                        <td class="num-cell">${exp.numero}</td>
+                        <td>${exp.fuero}</td>
+                        <td style="font-weight:bold; color:#1e293b;">${exp.caratula}</td>
+                        <td>${exp.juzgado}</td>
+                        <td class="${stateClass}">${exp.estado}</td>
+                        <td>${exp.cliente}</td>
+                        <td>${exp.contraparte || 'N/A'}</td>
+                        <td align="center">${exp.audiencia || '-'}</td>
+                        <td style="color:#64748b; font-size:9pt;">${exp.notas || ''}</td>
+                    </tr>
+                `;
+            });
+
+            excelHTML += `
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+            `;
+
+            const blob = new Blob([excelHTML], { type: 'application/vnd.ms-excel;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `SmartLex_Reporte_${new Date().toISOString().split('T')[0]}.xls`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            mostrarToast("Excel estilizado generado correctamente", "success");
+        }
+
+        function cargarDatosDemo(notificar = true) {
+            expedientes = [
+                {
+                    id: '1',
+                    numero: '102/2026',
+                    fuero: 'Civil y Comercial',
+                    caratula: 'González María c/ Banco Sudamericano s/ Indemnización',
+                    juzgado: 'Juzgado Civil Nº 4',
+                    estado: 'Activo',
+                    cliente: 'María González',
+                    contraparte: 'Banco Sudamericano',
+                    audiencia: '2026-11-20',
+                    plazo: '2026-11-15',
+                    notas: 'Pendiente peritaje contable e inspección de documentos.'
+                },
+                {
+                    id: '2',
+                    numero: '418/2025',
+                    fuero: 'Laboral',
+                    caratula: 'Ramírez Carlos c/ Constructora del Este s/ Despido',
+                    juzgado: 'Tribunal Laboral 2da Sala',
+                    estado: 'En Trámite',
+                    cliente: 'Carlos Ramírez',
+                    contraparte: 'Constructora del Este',
+                    audiencia: '2026-12-05',
+                    plazo: '2026-11-28',
+                    notas: 'Audiencia de conciliación y presentación de pruebas testimoniales.'
+                },
+                {
+                    id: '3',
+                    numero: '890/2026',
+                    fuero: 'Familia',
+                    caratula: 'Sosa Ana c/ Martinez Pedro s/ Régimen de Visitas',
+                    juzgado: 'Juzgado de Familia Nº 1',
+                    estado: 'Sentenciado',
+                    cliente: 'Ana Sosa',
+                    contraparte: 'Pedro Martinez',
+                    audiencia: '',
+                    plazo: '',
+                    notas: 'Sentencia firme registrada. Notificación enviada a las partes.'
+                }
+            ];
+            guardarEnStorage();
+            renderizarExpedientes();
+            actualizarEstadisticas();
+            if(notificar) mostrarToast("Datos demo cargados con éxito", "info");
+        }
+    </script>
+</body>
+</html>
